@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { User } from '@capacitor-firebase/authentication';
 import { currentUser, refreshIdToken, signIn, signOut } from './auth';
-import { ApiError, deleteEntry, listEntries, publishCatalog, saveEntry, uploadLogo, type Entry, type EntryInput, type Kind } from './api';
+import { ApiError, deleteEntry, downloadLogo, listEntries, publishCatalog, saveEntry, uploadLogo, uploadBackgroundLogo, removeBackgroundLogo, type Entry, type EntryInput, type Kind } from './api';
+import { LogoCropper } from './LogoCropper';
+import { BackgroundRemover } from './BackgroundRemover';
 
 const bankCategories = ['bank', 'foreign_bank', 'digital_bank', 'e_wallet', 'bnpl'];
 const brandGroups = ['utility', 'telco', 'loan', 'insurance', 'subscription', 'food', 'grocery', 'shopping', 'transport', 'fuel'];
@@ -26,10 +28,22 @@ function Editor({ kind, entry, onClose, onSaved }: {
   kind: Kind; entry: Entry | null; onClose: () => void; onSaved: () => Promise<void>;
 }) {
   const isNew = !entry;
-  const [draft, setDraft] = useState<EntryInput>(entry ? { ...entry } : blank(kind));
+  const [draft, setDraft] = useState<EntryInput>(entry ? {
+    id: entry.id, name: entry.name, short: entry.short, colour: entry.colour,
+    aliases: [...entry.aliases], sortOrder: entry.sortOrder, category: entry.category,
+    group: entry.group, commitment: entry.commitment,
+  } : blank(kind));
   const [aliasesText, setAliasesText] = useState(entry?.aliases.join(', ') ?? '');
   const [file, setFile] = useState<File | null>(null);
+  const [sourceFile, setSourceFile] = useState<File | null>(null);
+  const [cropSource, setCropSource] = useState<File | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<'logo' | 'background' | null>(null);
+  const [removeSource, setRemoveSource] = useState<File | null>(null);
+  const [editingImage, setEditingImage] = useState(false);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
+  const [backgroundFileUrl, setBackgroundFileUrl] = useState<string | null>(null);
+  const [clearBackground, setClearBackground] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [persisted, setPersisted] = useState(false);
@@ -40,6 +54,32 @@ function Editor({ kind, entry, onClose, onSaved }: {
     setFileUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
+
+  useEffect(() => {
+    if (!backgroundFile) { setBackgroundFileUrl(null); return; }
+    const url = URL.createObjectURL(backgroundFile);
+    setBackgroundFileUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [backgroundFile]);
+
+  const backgroundPreview = backgroundFile ? backgroundFileUrl : (clearBackground ? null : entry?.backgroundLogo?.url);
+  const backgroundFallback = fileUrl || entry?.logo?.url || null;
+  const hasBackgroundLogo = !!backgroundFile || (!!entry?.backgroundLogo && !clearBackground);
+
+  async function editImage(target: 'logo' | 'background', action: 'crop' | 'remove') {
+    const selected = target === 'logo' ? file : backgroundFile;
+    const saved = target === 'logo' ? entry?.logo : entry?.backgroundLogo;
+    if (!selected && !saved) return;
+    setError('');
+    setEditingImage(true);
+    try {
+      const source = selected || await downloadLogo(saved!.url);
+      if (action === 'crop') setCropSource(source);
+      else { setRemoveSource(source); setRemoveTarget(target); }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not load the logo for editing.');
+    } finally { setEditingImage(false); }
+  }
 
   function set<K extends keyof EntryInput>(key: K, value: EntryInput[K]) {
     setDraft((old) => ({ ...old, [key]: value }));
@@ -69,6 +109,8 @@ function Editor({ kind, entry, onClose, onSaved }: {
       await saveEntry(kind, input, isNew && !persisted);
       setPersisted(true);
       if (file) await uploadLogo(kind, draft.id, file);
+      if (backgroundFile) await uploadBackgroundLogo(kind, draft.id, backgroundFile);
+      else if (clearBackground) await removeBackgroundLogo(kind, draft.id);
       await onSaved();
       onClose();
     } catch (cause) {
@@ -100,9 +142,17 @@ function Editor({ kind, entry, onClose, onSaved }: {
         <button type="button" className="icon-button" onClick={onClose} aria-label="Close">×</button>
       </header>
       <div className="sheet-content">
-        <div className="logo-picker">
-          <span className="logo-preview" style={{ color: draft.colour }}>{fileUrl || entry?.logo?.url ? <img src={fileUrl || entry?.logo?.url} alt="Logo preview" /> : (draft.short || '?').slice(0, 2).toUpperCase()}</span>
-          <div><label className="file-button">Choose logo<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { const next = event.target.files?.[0] ?? null; if (next && next.size > 2 * 1024 * 1024) { setError('Logo must be 2 MB or smaller.'); return; } setError(''); setFile(next); }} /></label><p>PNG, JPEG or WebP · 2 MB max</p></div>
+        <div className="asset-field"><strong>Logo only</strong>
+          <div className="logo-picker">
+            <span className="logo-preview" style={{ color: draft.colour }}>{fileUrl || entry?.logo?.url ? <img src={fileUrl || entry?.logo?.url} alt="Square logo preview" /> : (draft.short || '?').slice(0, 2).toUpperCase()}</span>
+            <div><label className="file-button">Choose logo<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { const next = event.target.files?.[0] ?? null; event.target.value = ''; if (!next) return; if (next.size > 2 * 1024 * 1024) { setError('Logo must be 2 MB or smaller.'); return; } setError(''); setCropSource(next); }} /></label>{(file || entry?.logo) && <button type="button" className="text-button crop-adjust" disabled={editingImage} onClick={() => { if (sourceFile && file) setCropSource(sourceFile); else void editImage('logo', 'crop'); }}>Adjust crop</button>}{(file || entry?.logo) && <button type="button" className="text-button crop-adjust" disabled={editingImage} onClick={() => void editImage('logo', 'remove')}>Remove background</button>}<p>Square mark shown in lists · PNG, JPEG or WebP · 2 MB max</p></div>
+          </div>
+        </div>
+        <div className="asset-field"><strong>Logo with typography <span className="field-hint">Optional</span></strong>
+          <div className="logo-picker background-picker">
+            <span className="background-preview">{backgroundPreview || backgroundFallback ? <img src={backgroundPreview || backgroundFallback || ''} alt="Background logo preview" /> : <span>No logo yet</span>}</span>
+            <div><label className="file-button">Choose background logo<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { const next = event.target.files?.[0] ?? null; event.target.value = ''; if (!next) return; if (next.size > 2 * 1024 * 1024) { setError('Background logo must be 2 MB or smaller.'); return; } setError(''); setBackgroundFile(next); setClearBackground(false); }} /></label>{hasBackgroundLogo && <button type="button" className="text-button crop-adjust" disabled={editingImage} onClick={() => void editImage('background', 'remove')}>Remove background</button>}{hasBackgroundLogo && <button type="button" className="text-button crop-adjust" onClick={() => { setBackgroundFile(null); setClearBackground(true); }}>Clear logo</button>}<p>{hasBackgroundLogo ? 'Used behind detail content.' : 'Using the square logo as the background.'}</p></div>
+          </div>
         </div>
         <div className="field-row">
           <label>ID<input value={draft.id} disabled={!isNew} maxLength={40} onChange={(event) => set('id', event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} placeholder="maybank" /></label>
@@ -126,6 +176,12 @@ function Editor({ kind, entry, onClose, onSaved }: {
         <button className="secondary" type="button" onClick={onClose} disabled={busy}>Cancel</button>
         <button className="primary" type="button" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
       </footer>
+      {cropSource && <LogoCropper file={cropSource} onApply={(cropped) => { setSourceFile(cropSource); setFile(cropped); setCropSource(null); }} onCancel={() => setCropSource(null)} />}
+      {removeTarget && removeSource && <BackgroundRemover
+        file={removeSource}
+        onApply={(transparent) => { if (removeTarget === 'logo') setFile(transparent); else { setBackgroundFile(transparent); setClearBackground(false); } setRemoveTarget(null); setRemoveSource(null); }}
+        onCancel={() => { setRemoveTarget(null); setRemoveSource(null); }}
+      />}
     </section>
   </div>;
 }

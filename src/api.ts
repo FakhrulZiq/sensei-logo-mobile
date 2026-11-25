@@ -11,10 +11,11 @@ export type Entry = {
   category: string;
   sortOrder: number;
   logo: Logo | null;
+  backgroundLogo: Logo | null;
   group?: string;
   commitment?: { kind: string; loanType?: string } | null;
 };
-export type EntryInput = Omit<Entry, 'logo'>;
+export type EntryInput = Omit<Entry, 'logo' | 'backgroundLogo'>;
 type Page = { data: Entry[]; nextPage?: number; total?: number };
 
 const apiUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
@@ -70,6 +71,26 @@ export async function uploadLogo(kind: Kind, id: string, file: File) {
   const form = new FormData();
   form.append('file', file, file.name);
   return request(`/catalog/${kind}/${encodeURIComponent(id)}/logo`, { method: 'POST', body: form });
+}
+
+export async function uploadBackgroundLogo(kind: Kind, id: string, file: File) {
+  const form = new FormData();
+  form.append('file', file, file.name);
+  return request(`/catalog/${kind}/${encodeURIComponent(id)}/background-logo`, { method: 'POST', body: form });
+}
+
+export async function removeBackgroundLogo(kind: Kind, id: string) {
+  return request(`/catalog/${kind}/${encodeURIComponent(id)}/background-logo`, { method: 'DELETE' });
+}
+
+export async function downloadLogo(url: string): Promise<File> {
+  let response: Response;
+  try { response = await fetch(url, { cache: 'no-store' }); }
+  catch { throw new ApiError('Could not load the saved logo for editing. Check your connection.'); }
+  if (!response.ok) throw new ApiError(`Could not load the saved logo (${response.status}).`);
+  const blob = await response.blob();
+  if (!blob.type.startsWith('image/')) throw new ApiError('The saved logo is not a readable image.');
+  return new File([blob], 'saved-logo.webp', { type: blob.type });
 }
 
 export async function deleteEntry(kind: Kind, id: string) {
