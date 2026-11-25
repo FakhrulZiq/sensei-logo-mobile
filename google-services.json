@@ -1,0 +1,106 @@
+{
+  "project_info": {
+    "project_number": "207877465596",
+    "project_id": "sensei-app-514309",
+    "storage_bucket": "sensei-app-514309.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:207877465596:android:60170c967c4306ac377e79",
+        "android_client_info": {
+          "package_name": "my.sensei.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "207877465596-a9n96lsmti09012r8bto1t29i21njj5f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "my.sensei.app",
+            "certificate_hash": "997e1ab16bc5660120968489335af4c60b9f2da2"
+          }
+        },
+        {
+          "client_id": "207877465596-o1pfp0kg4rt415p0jrm3h1k3jluuf503.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDgnyTpNGnagj7OIrfJoukmeHiYclb-Mq0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "207877465596-o1pfp0kg4rt415p0jrm3h1k3jluuf503.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "207877465596-po9tvnok7uogpr7kt2o6i2880vhbphjp.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "my.sensei.app"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:207877465596:android:ad905a88ef7f5f78377e79",
+        "android_client_info": {
+          "package_name": "my.sensei.logo.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "207877465596-pk3h1jc3gp9m72f6uneqkitmnb7t3dkv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "my.sensei.logo.app",
+            "certificate_hash": "61ffed283347a778f49c544740f5ee196a476643"
+          }
+        },
+        {
+          "client_id": "207877465596-q58ron8ilag7dqhmh6lj1etrd9f3gbia.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "my.sensei.logo.app",
+            "certificate_hash": "62771c662f1e7571024437d6d37be885ec798051"
+          }
+        },
+        {
+          "client_id": "207877465596-o1pfp0kg4rt415p0jrm3h1k3jluuf503.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDgnyTpNGnagj7OIrfJoukmeHiYclb-Mq0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "207877465596-o1pfp0kg4rt415p0jrm3h1k3jluuf503.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "207877465596-po9tvnok7uogpr7kt2o6i2880vhbphjp.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "my.sensei.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

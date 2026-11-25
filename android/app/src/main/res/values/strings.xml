@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SenSei Catalog</string>
+    <string name="title_activity_main">SenSei Catalog</string>
+    <string name="package_name">my.sensei.logo</string>
+    <string name="custom_url_scheme">my.sensei.logo</string>
+</resources>
