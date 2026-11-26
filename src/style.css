@@ -55,14 +55,8 @@ p {
   gap: 9px;
 }
 .mark {
-  display: grid;
-  place-items: center;
-  width: 29px;
-  height: 29px;
-  border-radius: 8px;
-  background: #315e4a;
-  color: #fff;
-  font-weight: 700;
+  flex: 0 0 auto;
+  object-fit: contain;
 }
 .text-button {
   border: 0;

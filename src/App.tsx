@@ -5,6 +5,8 @@ import { ApiError, deleteEntry, downloadLogo, listEntries, publishCatalog, saveE
 import { LogoCropper } from './LogoCropper';
 import { BackgroundRemover } from './BackgroundRemover';
 
+const brandMark = import.meta.env.BASE_URL + 'sensei-mark.svg';
+
 const bankCategories = ['bank', 'foreign_bank', 'digital_bank', 'e_wallet', 'bnpl'];
 const brandGroups = ['utility', 'telco', 'loan', 'insurance', 'subscription', 'food', 'grocery', 'shopping', 'transport', 'fuel'];
 const commitmentKinds = ['', 'loan', 'bill', 'subscription'];
@@ -261,10 +263,10 @@ export default function App() {
   }
 
   if (user === undefined) return <main className="center-state">Checking sign-in…</main>;
-  if (!user) return <main className="sign-in"><div className="wordmark"><span className="mark">S</span> SenSei</div><h1>Catalog manager</h1><p>Manage the bank and brand names, colours, and logos shown in SenSei.</p><button className="primary" disabled={busy} onClick={login}>{busy ? 'Signing in…' : 'Sign in with Google'}</button>{error && <p className="error" role="alert">{error}</p>}</main>;
+  if (!user) return <main className="sign-in"><div className="wordmark"><img className="mark" src={brandMark} alt="" width={32} height={32} /> SenSei</div><h1>Catalog manager</h1><p>Manage the bank and brand names, colours, and logos shown in SenSei.</p><button className="primary" disabled={busy} onClick={login}>{busy ? 'Signing in…' : 'Sign in with Google'}</button>{error && <p className="error" role="alert">{error}</p>}</main>;
 
   return <main className="app-shell">
-    <header className="topbar"><div className="wordmark"><span className="mark">S</span> Catalog</div><button className="text-button" onClick={async () => { await signOut(); setUser(null); setEntries({ banks: [], brands: [] }); }} aria-label="Sign out">Sign out</button></header>
+    <header className="topbar"><div className="wordmark"><img className="mark" src={brandMark} alt="" width={32} height={32} /> Catalog</div><button className="text-button" onClick={async () => { await signOut(); setUser(null); setEntries({ banks: [], brands: [] }); }} aria-label="Sign out">Sign out</button></header>
     <div className="content"><div className="page-heading"><div><h1>Banks & brands</h1><p>Manage the shared catalog.</p></div><button className="secondary publish" disabled={busy} onClick={publish}>Publish changes</button></div>
       <div className="tabs" role="tablist" aria-label="Catalog type">{(['banks', 'brands'] as Kind[]).map((value) => <button key={value} role="tab" aria-selected={kind === value} className={kind === value ? 'active' : ''} onClick={() => { setKind(value); setSearch(''); }}>{value === 'banks' ? 'Banks' : 'Brands'} <span>{entries[value].length}</span></button>)}</div>
       <div className="toolbar"><input type="search" placeholder={`Search ${kind}…`} aria-label={`Search ${kind}`} value={search} onChange={(event) => setSearch(event.target.value)} /><button className="primary" onClick={() => setEditing('new')}>Add {kind === 'banks' ? 'bank' : 'brand'}</button></div>
