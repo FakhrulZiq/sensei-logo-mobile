@@ -1,21 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="328" height="328" viewBox="24 0 328 328">
-<title>SenSei coin mascot in a red headband</title>
-<defs><clipPath id="coin"><circle cx="161" cy="161" r="111"/></clipPath></defs>
-<g stroke="#28172C" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
-<path fill="#D9253B" d="M257 111c38-4 62 10 79 37l-21-2-3 17c-15-20-29-31-52-31Z"/>
-<path fill="#F14B53" d="M257 118c30 7 49 27 53 60l-17-10-10 11c-3-23-14-39-33-48Z"/>
-<path fill="#BB7337" d="M159 50c-66 0-118 51-118 114 0 64 50 115 115 115h9c62 0 112-52 112-116 0-63-48-113-111-113Z"/>
-<circle cx="161" cy="161" r="111" fill="#F6BA64"/>
-<circle cx="161" cy="161" r="88" fill="#FFDC91" stroke="#A85C32" stroke-width="4"/>
-<g clip-path="url(#coin)">
-<path fill="#DA243C" d="M42 86c79 13 156 2 232-24l14 44c-69 35-166 47-247 28Z"/>
-</g>
-<circle cx="161" cy="161" r="111" fill="none"/>
-<path fill="#E62F44" d="M247 105q11-9 23-1l6 15q-8 12-23 8Z"/>
-<path fill="none" d="M106 153q12-9 25-3m42-4q13-9 25-3"/>
-<path fill="#FFF4DB" stroke-width="4" d="M108 175q0-14 12-14t12 14q0 12-12 12t-12-12Zm63-5q0-14 12-14t12 14q0 12-12 12t-12-12Z"/>
-<path stroke-width="10" d="M124 172v6m63-11v6"/>
-<path fill="none" stroke-width="5" d="M137 193q15 13 29-2"/>
-<path fill="none" stroke="#A85C32" stroke-width="4" d="M167 220q-4-5-12-5-9 0-9 6 0 4 10 7 11 3 11 8 0 6-10 6-8 0-13-5"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="25 8 302 284">
+<title>SenSei coin logo</title>
+<g stroke="#44251D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="146" cy="150" r="107" fill="#FFC652"/>
+  <circle cx="146" cy="150" r="87" fill="#FFAC37" stroke="#B36728" stroke-width="4"/>
+  <path d="M65 194a92 92 0 0 0 132 32" fill="none" stroke="#FFE28A" stroke-width="6"/>
+  <path d="M169 131q-10-8-24-8c-15 0-23 8-23 17 0 10 10 14 24 18 15 4 26 10 26 23 0 12-11 21-27 21q-17 0-28-10" fill="none" stroke="#FFD065" stroke-width="12"/>
+  <g fill="#44251D" stroke="none">
+    <ellipse cx="105" cy="156" rx="16" ry="21"/>
+    <ellipse cx="187" cy="156" rx="16" ry="21"/>
+  </g>
+  <g fill="#FFF5DC" stroke="none">
+    <circle cx="100" cy="150" r="6"/><circle cx="109" cy="161" r="3"/>
+    <circle cx="182" cy="150" r="6"/><circle cx="191" cy="161" r="3"/>
+  </g>
+  <g fill="#F87770" stroke="none">
+    <ellipse cx="84" cy="185" rx="13" ry="7"/>
+    <ellipse cx="208" cy="185" rx="13" ry="7"/>
+  </g>
+  <path d="M133 180q13 20 26 0" fill="#A84436" stroke-width="4"/>
+  <path d="M48 108q100-29 190-9l12 31q-100-17-210 13l2-17Z" fill="#E82E42"/>
+  <path d="M56 115q95-23 173-10" fill="none" stroke="#FF6970" stroke-width="4"/>
+  <path d="M249 110q35-11 63 10l-19 2 4 13q-21-13-46-10Z" fill="#E82E42"/>
+  <path d="M251 115q32 5 45 33l-16-5-6 11q-8-21-27-28Z" fill="#F34D55"/>
+  <path d="M235 108q6-8 16-4 8 5 7 16-3 9-13 9l-10-9Z" fill="#F34D55"/>
 </g>
 </svg>
