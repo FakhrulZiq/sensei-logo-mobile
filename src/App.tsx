@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@capacitor-firebase/authentication';
 import { currentUser, refreshIdToken, signIn, signOut } from './auth';
 import { ApiError, deleteEntry, downloadLogo, listEntries, publishCatalog, saveEntry, uploadLogo, uploadBackgroundLogo, removeBackgroundLogo, type Entry, type EntryInput, type Kind } from './api';
-import { LogoCropper } from './LogoCropper';
-import { BackgroundRemover } from './BackgroundRemover';
+import { imageFrames, LogoCropper, type ImageEdit, type ImageTarget } from './LogoCropper';
 
-const brandMark = import.meta.env.BASE_URL + 'sensei-mark.svg';
+const brandMark = import.meta.env.BASE_URL + 'sensei-catalog-mark.svg';
 
 const bankCategories = ['bank', 'foreign_bank', 'digital_bank', 'e_wallet', 'bnpl'];
 const brandGroups = ['utility', 'telco', 'loan', 'insurance', 'subscription', 'food', 'grocery', 'shopping', 'transport', 'fuel'];
@@ -26,6 +25,51 @@ function Logo({ entry }: { entry: Entry }) {
   </span>;
 }
 
+function useImagePreview(file?: File) {
+  const [preview, setPreview] = useState<{ file: File; url: string } | null>(null);
+
+  useEffect(() => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setPreview({ file, url });
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  return file && preview?.file === file ? preview.url : undefined;
+}
+
+function ImageCard({ target, url, status, disabled, onEdit, onChoose }: {
+  target: ImageTarget;
+  url?: string;
+  status: string;
+  disabled: boolean;
+  onEdit: () => void;
+  onChoose: (file: File) => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  const { label } = imageFrames[target];
+
+  return <div className="image-card">
+    <button type="button" className="image-preview checkerboard" disabled={disabled}
+      aria-label={`${url ? 'Edit' : 'Choose'} ${label.toLowerCase()}`}
+      onClick={() => url ? onEdit() : input.current?.click()}>
+      {url ? <>
+        <img src={url} alt="" />
+        <span className="image-edit-label" aria-hidden="true">Edit</span>
+      </> : <span className="image-add" aria-hidden="true">+</span>}
+    </button>
+    <h4>{label}</h4>
+    <p>{status}</p>
+    {url && <button className="text-button image-replace" type="button" disabled={disabled}
+      aria-label={`Replace ${label.toLowerCase()}`} onClick={() => input.current?.click()}>Replace</button>}
+    <input hidden ref={input} type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => {
+      const next = event.target.files?.[0];
+      event.target.value = '';
+      if (next) onChoose(next);
+    }} />
+  </div>;
+}
+
 function Editor({ kind, entry, onClose, onSaved }: {
   kind: Kind; entry: Entry | null; onClose: () => void; onSaved: () => Promise<void>;
 }) {
@@ -36,51 +80,62 @@ function Editor({ kind, entry, onClose, onSaved }: {
     group: entry.group, commitment: entry.commitment,
   } : blank(kind));
   const [aliasesText, setAliasesText] = useState(entry?.aliases.join(', ') ?? '');
-  const [file, setFile] = useState<File | null>(null);
-  const [sourceFile, setSourceFile] = useState<File | null>(null);
-  const [cropSource, setCropSource] = useState<File | null>(null);
-  const [removeTarget, setRemoveTarget] = useState<'logo' | 'background' | null>(null);
-  const [removeSource, setRemoveSource] = useState<File | null>(null);
-  const [editingImage, setEditingImage] = useState(false);
-  const [fileUrl, setFileUrl] = useState<string | null>(null);
-  const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
-  const [backgroundFileUrl, setBackgroundFileUrl] = useState<string | null>(null);
+  const [images, setImages] = useState<Partial<Record<ImageTarget, ImageEdit>>>({});
+  const [imageEditor, setImageEditor] = useState<{ target: ImageTarget; source: File; previous?: ImageEdit } | null>(null);
+  const [loadingImage, setLoadingImage] = useState<ImageTarget | null>(null);
+  const [imageError, setImageError] = useState('');
   const [clearBackground, setClearBackground] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [persisted, setPersisted] = useState(false);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const squarePreview = useImagePreview(images.logo?.output) ?? entry?.logo?.url;
+  const widePreview = useImagePreview(images.background?.output) ?? entry?.backgroundLogo?.url;
+  const hasWideImage = !!images.background || !!entry?.backgroundLogo;
+  const useSquare = clearBackground || !hasWideImage;
 
   useEffect(() => {
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    setFileUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+    const element = dialog.current!;
+    element.showModal();
+    return () => element.close();
+  }, []);
 
-  useEffect(() => {
-    if (!backgroundFile) { setBackgroundFileUrl(null); return; }
-    const url = URL.createObjectURL(backgroundFile);
-    setBackgroundFileUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [backgroundFile]);
+  async function editImage(target: ImageTarget) {
+    setImageError('');
+    const previous = (target === 'background' && clearBackground) ? undefined : images[target];
+    if (previous) {
+      setImageEditor({ target, source: previous.source, previous });
+      return;
+    }
 
-  const backgroundPreview = backgroundFile ? backgroundFileUrl : (clearBackground ? null : entry?.backgroundLogo?.url);
-  const backgroundFallback = fileUrl || entry?.logo?.url || null;
-  const hasBackgroundLogo = !!backgroundFile || (!!entry?.backgroundLogo && !clearBackground);
+    if (target === 'background' && useSquare && images.logo) {
+      setImageEditor({ target, source: images.logo.output });
+      return;
+    }
 
-  async function editImage(target: 'logo' | 'background', action: 'crop' | 'remove') {
-    const selected = target === 'logo' ? file : backgroundFile;
-    const saved = target === 'logo' ? entry?.logo : entry?.backgroundLogo;
-    if (!selected && !saved) return;
-    setError('');
-    setEditingImage(true);
+    const saved = target === 'background' && !useSquare ? entry?.backgroundLogo : entry?.logo;
+    if (!saved) return;
+    setLoadingImage(target);
     try {
-      const source = selected || await downloadLogo(saved!.url);
-      if (action === 'crop') setCropSource(source);
-      else { setRemoveSource(source); setRemoveTarget(target); }
+      setImageEditor({ target, source: await downloadLogo(saved.url) });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not load the logo for editing.');
-    } finally { setEditingImage(false); }
+      setImageError(cause instanceof Error ? cause.message : 'Could not load the image for editing.');
+    } finally {
+      setLoadingImage(null);
+    }
+  }
+
+  function chooseImage(target: ImageTarget, source: File) {
+    setImageError('');
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(source.type)) {
+      setImageError('Choose a PNG, JPEG or WebP image.');
+      return;
+    }
+    if (source.size > 2 * 1024 * 1024) {
+      setImageError('Choose an image of 2 MB or less.');
+      return;
+    }
+    setImageEditor({ target, source });
   }
 
   function set<K extends keyof EntryInput>(key: K, value: EntryInput[K]) {
@@ -110,8 +165,8 @@ function Editor({ kind, entry, onClose, onSaved }: {
       if (isNew) delete (input as Partial<EntryInput>).sortOrder;
       await saveEntry(kind, input, isNew && !persisted);
       setPersisted(true);
-      if (file) await uploadLogo(kind, draft.id, file);
-      if (backgroundFile) await uploadBackgroundLogo(kind, draft.id, backgroundFile);
+      if (images.logo) await uploadLogo(kind, draft.id, images.logo.output);
+      if (!clearBackground && images.background) await uploadBackgroundLogo(kind, draft.id, images.background.output);
       else if (clearBackground) await removeBackgroundLogo(kind, draft.id);
       await onSaved();
       onClose();
@@ -137,27 +192,34 @@ function Editor({ kind, entry, onClose, onSaved }: {
     }
   }
 
-  return <div className="sheet-backdrop" onClick={onClose}>
-    <section className="sheet" role="dialog" aria-modal="true" aria-label={isNew ? `New ${kind === 'banks' ? 'bank' : 'brand'}` : `Edit ${entry.name}`} onClick={(event) => event.stopPropagation()}>
+  const locked = busy || !!loadingImage;
+
+  return <dialog className="sheet" ref={dialog} aria-labelledby="entry-title"
+    onCancel={(event) => { event.preventDefault(); if (!locked && !imageEditor) onClose(); }}>
       <header className="sheet-header">
-        <div><h2>{isNew ? `New ${kind === 'banks' ? 'bank' : 'brand'}` : 'Edit entry'}</h2><p>{isNew ? 'Add an entry to the SenSei catalog.' : entry?.id}</p></div>
-        <button type="button" className="icon-button" onClick={onClose} aria-label="Close">×</button>
+        <div>
+          <h2 id="entry-title">{isNew ? `New ${kind === 'banks' ? 'bank' : 'brand'}` : entry.name}</h2>
+          <p>{isNew ? 'Add an entry to the SenSei catalog.' : entry.id}</p>
+        </div>
+        <button type="button" className="icon-button" onClick={onClose} disabled={locked} aria-label="Close entry">×</button>
       </header>
       <div className="sheet-content">
-        <div className="asset-field"><strong>Logo only</strong>
-          <div className="logo-picker">
-            <span className="logo-preview" style={{ color: draft.colour }}>{fileUrl || entry?.logo?.url ? <img src={fileUrl || entry?.logo?.url} alt="Square logo preview" /> : (draft.short || '?').slice(0, 2).toUpperCase()}</span>
-            <div><label className="file-button">Choose logo<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { const next = event.target.files?.[0] ?? null; event.target.value = ''; if (!next) return; if (next.size > 2 * 1024 * 1024) { setError('Logo must be 2 MB or smaller.'); return; } setError(''); setCropSource(next); }} /></label>{(file || entry?.logo) && <button type="button" className="text-button crop-adjust" disabled={editingImage} onClick={() => { if (sourceFile && file) setCropSource(sourceFile); else void editImage('logo', 'crop'); }}>Adjust crop</button>}{(file || entry?.logo) && <button type="button" className="text-button crop-adjust" disabled={editingImage} onClick={() => void editImage('logo', 'remove')}>Remove background</button>}<p>Square mark shown in lists · PNG, JPEG or WebP · 2 MB max</p></div>
+        <section className="asset-field" aria-labelledby="images-title">
+          <h3 id="images-title">Catalog images</h3>
+          <div className="asset-grid">
+            <ImageCard target="logo" url={squarePreview} status={loadingImage === 'logo' ? 'Opening image…' : 'Catalog lists'}
+              disabled={locked} onEdit={() => void editImage('logo')} onChoose={(source) => chooseImage('logo', source)} />
+            <ImageCard target="background" url={useSquare ? squarePreview : widePreview}
+              status={loadingImage === 'background' ? 'Opening image…' : useSquare && squarePreview ? 'Uses square logo' : 'Detail background · optional'}
+              disabled={locked} onEdit={() => void editImage('background')} onChoose={(source) => chooseImage('background', source)} />
           </div>
-        </div>
-        <div className="asset-field"><strong>Logo with typography <span className="field-hint">Optional</span></strong>
-          <div className="logo-picker background-picker">
-            <span className="background-preview">{backgroundPreview || backgroundFallback ? <img src={backgroundPreview || backgroundFallback || ''} alt="Background logo preview" /> : <span>No logo yet</span>}</span>
-            <div><label className="file-button">Choose background logo<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { const next = event.target.files?.[0] ?? null; event.target.value = ''; if (!next) return; if (next.size > 2 * 1024 * 1024) { setError('Background logo must be 2 MB or smaller.'); return; } setError(''); setBackgroundFile(next); setClearBackground(false); }} /></label>{hasBackgroundLogo && <button type="button" className="text-button crop-adjust" disabled={editingImage} onClick={() => void editImage('background', 'remove')}>Remove background</button>}{hasBackgroundLogo && <button type="button" className="text-button crop-adjust" onClick={() => { setBackgroundFile(null); setClearBackground(true); }}>Clear logo</button>}<p>{hasBackgroundLogo ? 'Used behind detail content.' : 'Using the square logo as the background.'}</p></div>
-          </div>
-        </div>
+          {hasWideImage && <button type="button" className="text-button asset-fallback" disabled={locked}
+            onClick={() => setClearBackground(!clearBackground)}>{clearBackground ? 'Restore wide logo' : 'Use square logo for details'}</button>}
+          {imageError && <p className="error" role="alert">{imageError}</p>}
+        </section>
+        <h3 className="details-title">Entry details</h3>
         <div className="field-row">
-          <label>ID<input value={draft.id} disabled={!isNew} maxLength={40} onChange={(event) => set('id', event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} placeholder="maybank" /></label>
+          <label>ID<input value={draft.id} disabled={!isNew || persisted} maxLength={40} onChange={(event) => set('id', event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} placeholder="maybank" /></label>
           <label>Short name<input value={draft.short} maxLength={40} onChange={(event) => set('short', event.target.value)} placeholder="Maybank" /></label>
         </div>
         <label>Name<input value={draft.name} maxLength={120} onChange={(event) => set('name', event.target.value)} placeholder="Full name" /></label>
@@ -171,21 +233,21 @@ function Editor({ kind, entry, onClose, onSaved }: {
             {draft.commitment?.kind === 'loan' && <label>Loan type<select value={draft.commitment.loanType ?? 'other'} onChange={(event) => set('commitment', { kind: 'loan', loanType: event.target.value })}>{loanTypes.map((value) => <option key={value}>{value}</option>)}</select></label>}</div></>}
         <label>Aliases<input value={aliasesText} onChange={(event) => setAliasesText(event.target.value)} placeholder="Comma separated names" /><span className="field-hint">Used when matching receipts and transactions.</span></label>
         {!isNew && <label>Sort order<input type="number" min={0} value={draft.sortOrder} onChange={(event) => set('sortOrder', Number(event.target.value))} /></label>}
-        {error && <p className="error" role="alert">{error}</p>}
       </div>
+      {error && <p className="error sheet-error" role="alert">{error}</p>}
       <footer className="sheet-footer">
-        {entry && <button className="danger" type="button" onClick={remove} disabled={busy}>Delete</button>}
-        <button className="secondary" type="button" onClick={onClose} disabled={busy}>Cancel</button>
-        <button className="primary" type="button" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
+        {entry && <button className="danger" type="button" onClick={remove} disabled={locked}>Delete</button>}
+        <button className="secondary" type="button" onClick={onClose} disabled={locked}>Cancel</button>
+        <button className="primary" type="button" onClick={save} disabled={locked}>{busy ? 'Saving…' : 'Save entry'}</button>
       </footer>
-      {cropSource && <LogoCropper file={cropSource} onApply={(cropped) => { setSourceFile(cropSource); setFile(cropped); setCropSource(null); }} onCancel={() => setCropSource(null)} />}
-      {removeTarget && removeSource && <BackgroundRemover
-        file={removeSource}
-        onApply={(transparent) => { if (removeTarget === 'logo') setFile(transparent); else { setBackgroundFile(transparent); setClearBackground(false); } setRemoveTarget(null); setRemoveSource(null); }}
-        onCancel={() => { setRemoveTarget(null); setRemoveSource(null); }}
-      />}
-    </section>
-  </div>;
+      {imageEditor && <LogoCropper {...imageEditor} onApply={(edit) => {
+        const { target } = imageEditor;
+        setImages((current) => ({ ...current, [target]: edit }));
+        if (target === 'background') setClearBackground(false);
+        setImageEditor(null);
+      }} onCancel={() => setImageEditor(null)} />}
+    </dialog>;
+
 }
 
 export default function App() {

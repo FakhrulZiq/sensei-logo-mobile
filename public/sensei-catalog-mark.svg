@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>SenSei Catalog</title>
+  <rect x="12" y="12" width="232" height="232" rx="54" fill="#075361"/>
+  <path fill="#96E5CC" d="M94 62H181A23 23 0 0 1 204 85V157H188V85A7 7 0 0 0 181 78H94Z"/>
+  <path fill="#FFF" fill-rule="evenodd" d="M69 90H162A14 14 0 0 1 176 104V174A14 14 0 0 1 162 188H69A14 14 0 0 1 55 174V104A14 14 0 0 1 69 90ZM78 121H99A5 5 0 0 1 104 126V151A5 5 0 0 1 99 156H78A5 5 0 0 1 73 151V126A5 5 0 0 1 78 121ZM125 132H151A7 7 0 0 1 151 146H125A7 7 0 0 1 125 132Z"/>
+</svg>
